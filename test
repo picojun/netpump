@@ -15,11 +15,11 @@ curl_with_retry() {
 }
 
 # Start weblink
-bin/weblink --client --server &
+bin/weblink --client --server --port 10000 &
 # Wait for weblink to be ready
-curl_with_retry http://127.0.0.1:8080/
+curl_with_retry http://127.0.0.1:10000/
 # Establish connection between the client and the server
-firefox "http://127.0.0.1:8080/?server=ws://127.0.0.1:8000&batch=2"
+firefox "http://127.0.0.1:10000/?server=ws://127.0.0.1:10000"
 # Make multiple requests in parallel through weblink to test everything
 for _ in $(seq 1 3); do
   (curl_with_retry -px http://127.0.0.1:3128 https://www.google.com/ \

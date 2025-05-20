@@ -1,61 +1,85 @@
-require 'csv'
-require 'time'
-
 class Relay < EventMachine::Connection
-  def initialize(tag, xff = nil)
+  def initialize(side, logproc)
     super
     pause
-    @tag = tag
-    @xff = xff
-    @remote_port, @remote_ip = unpack_sockaddr_in(get_peername)
-    @websocket = nil
-    @ws_remote_ip = nil
-    @ws_remote_port = nil
+    @ws = nil
+    @sig = nil
+    @completion = nil
+    @closed = false
+    @unbind_sent = false
+    @unbind_recv = false
+    @remote_ip = nil
+    @connection_inactivity_timeout = 0.0
+    @log = lambda { |msg, **ctx| logproc[msg, side: side, ip: @remote_ip, sig: @sig, **ctx] }
   end
 
-  def start(websocket)
-    @websocket = websocket
-    @websocket.onbinary do |msg|
-      log('recv', msg.bytesize)
-      send_data(msg)
+  def bind(ws, remote_ip)
+    @ws = ws
+    @sig = "#{ws.signature}.#{signature}"
+    @completion = EventMachine::Completion.new
+    @closed = false
+    @unbind_sent = false
+    @unbind_recv = false
+    @remote_ip = remote_ip
+    @connection_inactivity_timeout = comm_inactivity_timeout
+    @log.call "[+] bind."
+    @ws.onbinary do |data|
+      if @closed
+        @log.call "[~] data discard, bound closed.", connerror: error?, bytes: data.bytesize
+      else
+        send_data(data)
+      end
     end
-    @websocket.onerror { |err| log('ws/error', err) }
-    @websocket.onclose { close_connection_after_writing }
-    @ws_remote_port, @ws_remote_ip = unpack_sockaddr_in(websocket.get_peername)
+    @ws.onmessage do |msg|
+      if msg == "unbind"
+        @unbind_recv = true
+        if @unbind_sent
+          @completion.succeed
+        else
+          close_connection
+        end
+      else
+        @log.call "[!] unexpected text on websocket.", msg: msg
+      end
+    end
+    @ws.onclose do
+      close_connection
+      @completion.fail
+      close_info = @ws.instance_variable_get(:@handler).instance_variable_get(:@close_info) || {}
+      code = close_info[:code]
+      reason = close_info[:reason]
+      if reason
+        reason = reason.empty? ? nil : reason.inspect
+      end
+      @log.call "[-] websocket is closed.", code: code, reason: reason
+    end
     resume
+    @completion
   end
 
   def receive_data(data)
-    log('sent', data.bytesize)
-    @websocket.send_binary(data)
+    @ws.send_binary(data)
   end
 
-  def unbind
-    log('close')
-    # Status code 1000 indicates a normal closure.
-    @websocket&.close(1000) if @websocket&.state == :connected
-  end
-
-  private
-
-  def log(event, comment = nil)
-    row = [
-      Time.now.iso8601(3),
-      @tag,
-      @xff,
-      @remote_ip,
-      @remote_port&.to_s,
-      @ws_remote_ip,
-      @ws_remote_port&.to_s,
-      event,
-      comment&.to_s,
-    ]
-
-    puts CSV.generate_line(row, col_sep: ' ', write_nil_value: '-')
-  end
-
-  def unpack_sockaddr_in(sock)
-    Socket.unpack_sockaddr_in(sock) if sock
-  rescue ArgumentError
+  def unbind(errno)
+    if errno
+      if errno == Errno::ETIMEDOUT && @connection_inactivity_timeout > 0
+        reason = "inactivity"
+      elsif errno.respond_to?(:exception)
+        reason = errno.exception.message
+        reason[0] = reason[0].downcase
+      else
+        # win: errno can be set to :unknown on windows
+        reason = errno.to_s
+      end
+      reason = reason.inspect
+    end
+    @log.call "[-] unbind.", reason: reason
+    @closed = true
+    if @ws&.state == :connected
+      @ws.send_text("unbind")
+      @unbind_sent = true
+      @completion&.succeed if @unbind_recv
+    end
   end
 end
