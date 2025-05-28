@@ -1,0 +1,8 @@
+{
+  "name": "netpump",
+  "description": "netpump server",
+  "stack": "heroku-20",
+  "website": "https://netpump.org",
+  "repository": "https://github.com/soylent/netpump",
+  "keywords": ["proxy"]
+}

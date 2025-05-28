@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: netpump
+    runtime: ruby
+    plan: free
+    buildCommand: bundle install
+    startCommand: netpump --server --server-port $PORT
+    branch: main
+    healthCheckPath: /healthcheck

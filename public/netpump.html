@@ -1,0 +1,191 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>netpump</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <style>
+      html,
+      body {
+        height: 100%;
+        background-color: #540b0b;
+        font-family: arial, sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: white;
+      }
+      dd {
+        margin: 0;
+      }
+      input[type="checkbox"] {
+        margin-right: 0.5em;
+      }
+      header {
+        margin: 1em 0;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 1.5em;
+      }
+      header svg {
+        width: 4em;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <svg role="img" viewBox="0 0 16 16">
+        <path
+          d="M5.072 5.73v6.054h5.856V5.73"
+          style="stroke: #fff; stroke-width: 2.91; fill: none"
+        />
+      </svg>
+      <h1>netpump</h1>
+    </header>
+    <div class="settings">
+      <label
+        ><input type="checkbox" id="nosleep" />Prevent screen from
+        sleeping</label
+      >
+    </div>
+    <dl class="stats">
+      <dt>Connections</dt>
+      <dd id="connectionCount">0</dd>
+    </dl>
+    <script>
+      function createRelayWebSocketPair(clientAddr, serverAddr) {
+        // client websocket.
+        var client;
+        // Connect to the server first, so that when we
+        // connect to the client the whole chain is complete.
+        var server = new WebSocket(serverAddr + "/ws/rem/relay");
+        // Log server errors.
+        server.onerror = function (event) {
+          console.error("[!] server/error", event);
+        };
+        // When the server closes its websocket, close the corresponding
+        // client websocket too.
+        server.onclose = function (event) {
+          console.log("[-] server/close", {
+            code: event.code,
+            reason: event.reason,
+            wasClean: event.wasClean,
+          });
+          if (client?.readyState === WebSocket.OPEN) {
+            client.close(
+              1000,
+              `bound close: ${event.code} ${event.reason}`.trimEnd(),
+            );
+          }
+        };
+        server.onopen = function () {
+          // Connect to the client to relay data.
+          client = new WebSocket(clientAddr + "/ws/loc/relay");
+          // Log relay errors.
+          client.onerror = function (event) {
+            console.error("[!] client/error", event);
+          };
+          // When the client websocket is closed, close the corresponding
+          // server websocket.
+          client.onclose = function (event) {
+            if (client.cleanOpen) {
+              connections--;
+              connectionCount.textContent = connections;
+            }
+            console.log("[-] client/close", {
+              code: event.code,
+              reason: event.reason,
+              wasClean: event.wasClean,
+            });
+            if (server.readyState === WebSocket.OPEN) {
+              server.close(
+                1000,
+                `bound close: ${event.code} ${event.reason}`.trimEnd(),
+              );
+            }
+          };
+          // Splice client and server websockets.
+          client.onopen = function () {
+            connections++;
+            connectionCount.textContent = connections;
+            client.cleanOpen = true;
+            client.onmessage = function (msg) {
+              server.send(msg.data);
+            };
+            server.onmessage = function (msg) {
+              client.send(msg.data);
+            };
+          };
+        };
+      }
+      // Netpump client.
+      var clientAddr = "ws://" + location.host;
+      // Netpump server.
+      var serverAddr;
+      // Establish a client control websocket to receive commands.
+      var control = new WebSocket(clientAddr + "/ws/loc/control");
+      // Total number of client connections.
+      var connections = 0;
+      // Log control websocket errors.
+      control.onerror = function (event) {
+        console.error("[!] control/error", event);
+      };
+      // Log control websocket closure.
+      control.onclose = function (event) {
+        console.log("[-] control/close", {
+          code: event.code,
+          reason: event.reason,
+        });
+      };
+      // Add more connections on demand.
+      control.onmessage = function (msg) {
+        serverAddr = msg.data;
+        control.onmessage = function (msg) {
+          var connectionBatchSize = Number.parseInt(msg.data);
+          console.log("[~] control/batch", { count: connectionBatchSize });
+          for (var i = 0; i < connectionBatchSize; i++) {
+            createRelayWebSocketPair(clientAddr, serverAddr);
+          }
+        };
+      };
+    </script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"
+      type="text/javascript"
+      crossorigin="anonymous"
+    ></script>
+    <script>
+      var noSleep = new NoSleep();
+      var noSleepCheckbox = document.getElementById("nosleep");
+
+      document.addEventListener(
+        "visibilitychange",
+        function resetNoSleep(event) {
+          if (document.visibilityState === "visible") {
+            noSleep.disable();
+            noSleep = new NoSleep();
+            noSleepCheckbox.checked = false;
+          }
+        },
+      );
+
+      noSleepCheckbox.addEventListener("click", function toggleNoSleep(event) {
+        if (noSleep.isEnabled) {
+          noSleep.disable();
+        } else {
+          try {
+            noSleep.enable();
+          } catch (error) {
+            event.preventDefault();
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

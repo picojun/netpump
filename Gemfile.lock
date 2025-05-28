@@ -1,0 +1,26 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    em-websocket (0.5.3)
+      eventmachine (>= 0.12.9)
+      http_parser.rb (~> 0)
+    eventmachine (1.2.7)
+    eventmachine-proxy (1.0.0)
+      eventmachine (~> 1.2)
+    http_parser.rb (0.8.0)
+    netpump (1.0.0)
+      em-websocket (~> 0.5)
+      eventmachine-proxy (~> 1.0)
+
+PLATFORMS
+  arm64-darwin-24
+  ruby
+
+DEPENDENCIES
+  netpump (~> 1.0)
+
+RUBY VERSION
+   ruby 3.4.4p34
+
+BUNDLED WITH
+   2.6.9
