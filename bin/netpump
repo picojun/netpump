@@ -2,12 +2,7 @@
 
 Process.setproctitle "netpump"
 $stdin.close
-if $PROGRAM_NAME.include?("/")
-  $VERBOSE = true
-  $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-else
-  $VERBOSE = nil
-end
+$VERBOSE = $PROGRAM_NAME == __FILE__ || nil
 
 require "optparse"
 require "uri"
