@@ -7,7 +7,7 @@ def log(msg, **context)
     case v
     when Exception
       line << " #{k}=#{v.message.inspect}"
-      line << " backtrace=#{v.backtrace}" if !$VERBOSE.nil? && v.backtrace
+      line << " backtrace=#{v.backtrace}" if $VERBOSE && v.backtrace
     when true
       line << " #{k}"
     when false, nil, ""
