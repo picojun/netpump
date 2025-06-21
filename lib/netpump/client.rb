@@ -58,10 +58,10 @@ module Netpump
         case path
         when "/"
           ws.serve_file(PUBLIC_DIR.join("netpump.html"))
-          @log.call "[~] http request.", method: "GET", path: path, ip: ws.remote_ip
+          @log.call "[~] http request.", ip: ws.remote_ip, method: "GET", path: path
         when "/favicon.svg"
           ws.serve_file(PUBLIC_DIR.join("favicon.svg"))
-          @log.call "[~] http request.", method: "GET", path: path, ip: ws.remote_ip
+          @log.call "[~] http request.", ip: ws.remote_ip, method: "GET", path: path
         when "/ws/loc/control"
           next false if @control_ws
           ws.onopen do |_handshake|
