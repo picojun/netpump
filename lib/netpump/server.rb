@@ -11,7 +11,7 @@ module Netpump
       @port = port
       @proxy_host = proxy_host
       @proxy_port = proxy_port
-      @log = lambda { |msg, **ctx| log(msg, rem: true, **ctx) }
+      @log = lambda { |msg, **ctx| log(msg, s: true, **ctx) }
     end
 
     def start
@@ -48,7 +48,7 @@ module Netpump
     end
 
     def bind(ws, ip)
-      EventMachine.connect(@proxy_host, @proxy_port, Relay, "rem") do |relay|
+      EventMachine.connect(@proxy_host, @proxy_port, Relay, "s") do |relay|
         fail "inactivity timeout" unless relay.comm_inactivity_timeout.zero?
         relay.bind(ws, ip).callback { bind(ws, ip) }
       end

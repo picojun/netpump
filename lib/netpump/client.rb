@@ -31,7 +31,7 @@ module Netpump
       @websocket_pool_size = websocket_pool_size
       @websocket_pool_timeout = websocket_pool_timeout
       @control_ws = nil
-      @log = lambda { |msg, **ctx| log(msg, loc: true, **ctx) }
+      @log = lambda { |msg, **ctx| log(msg, c: true, **ctx) }
       @ready = EventMachine::Completion.new
     end
 
@@ -100,7 +100,7 @@ module Netpump
     end
 
     def start_proxy_server
-      proxy = EventMachine.start_server(@proxy_host, @proxy_port, Relay, "loc") do |relay|
+      proxy = EventMachine.start_server(@proxy_host, @proxy_port, Relay, "c") do |relay|
         bind(relay)
       end
       @log.call "[+] proxy server is ready.", type: "https", host: @proxy_host, port: @proxy_port
