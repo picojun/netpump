@@ -92,7 +92,10 @@ else
   end
 end
 
-EventMachine.error_handler { |e| log "[!] unexpected errback.", error: e }
+EventMachine.error_handler do |e|
+  log "[!] error: #{e.message}."
+  EventMachine.stop
+end
 EventMachine.run do
   trap(:INT) { puts; EventMachine.stop }
   if sopts.delete(:server)
@@ -103,7 +106,4 @@ EventMachine.run do
     client = Netpump::Client.new(**copts)
     client.start
   end
-rescue => e
-  log "[!] #{e.message}."
-  EventMachine.stop
 end
