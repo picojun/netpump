@@ -21,8 +21,8 @@ module Netpump
       websocket_pool_timeout: 60.0
     )
       @mode = mode
-      @host = host
-      @port = port
+      @host = host if mode == "browser"
+      @port = port if mode == "browser"
       @proxy_host = proxy_host
       @proxy_port = proxy_port
       @server_url = URI(server_url)
