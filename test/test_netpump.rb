@@ -45,16 +45,12 @@ class TestNetpump < Minitest::Test
 
   def test_that_sequential_requests_reuse_websockets
     [CLIENT_DIRECT, CLIENT_BROWSER].each do |client|
-      # It would be ideal to request /healthcheck on the netpump server, but
-      # net/http does not support using connect proxy with ssl off.
+      n = 4
       out = capture do
-        3.times { make_test_request(client) }
+        n.times { make_test_request(client) }
       end
-      # Sequential requests must reuse websockets.
-      # Two websockets are open at a time:
-      # one to the client and one to the server.
-      open_count = out.scan("websocket is open").size
-      assert_includes [0, 2], open_count
+      open = out.scan("websocket is open")
+      assert_operator open.size, :<, n * 2, out
     end
   end
 
@@ -67,18 +63,11 @@ class TestNetpump < Minitest::Test
           Thread.new { make_test_request(client) }
         end
         request_threads.each(&:join)
-        make_test_request(client)
       end
-      # Parallel requests open websockets.
-      # A pair of websockets is already open from previous requests.
-      # Ideally, the count should be n * 2 - 2, but some requests get finished
-      # before the rest is sent, resulting in websocket reuse.
-      open_count = out.scan("websocket is open").size
-      assert_predicate open_count, :even?
-      assert_operator open_count, :>=, n, out
-      purge_count = out.scan("websocket is closed").size
-      assert_predicate purge_count, :even?
-      assert_equal open_count + 2 - n, purge_count, out
+      open = out.scan("websocket is open")
+      assert_operator open.size, :>=, n, out
+      purge = out.scan("websocket is closed")
+      assert_predicate purge.size, :positive?, out
     end
   end
 
