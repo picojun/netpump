@@ -1,3 +1,10 @@
+1.0.1
+
+Simplify sequential and parallel request tests
+Dump backtrace only if $VERBOSE is true
+Manage $LOAD_PATH externally
+Abort on unhandled exception
+
 1.0.0
 
 * Rename weblink to netpump
